@@ -115,6 +115,15 @@ public:
 	}
 };
 
+template <typename... Inner> class Optional {
+protected:
+	Sequence<Inner...> inner;
+public:
+public:
+	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringView<string_t> && view, Right & right, FarRight & ... fright) const {
+		return inner(std::forward<sre::StringView<string_t>>(view), right, fright...) || right(std::forward<sre::StringView<string_t>>(view), fright...);
+	}
+};
 
 template <typename... Inner> class RegExp {
 public:

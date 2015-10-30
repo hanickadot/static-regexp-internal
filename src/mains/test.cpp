@@ -9,7 +9,7 @@ int main(int argc, char ** argv) {
 	
 	std::string tmp{argv[1]};
 	
-	if (RegExp<Begin, Select<Sequence<Range<'a','z'>, Range<'0','9'>>, Range<'a','z'>>, End>::match(tmp)) {
+	if (RegExp<Begin, Select<Sequence<Range<'a','z'>, Range<'0','9'>, Range<'a','z'>>, Range<'a','z'>>, Optional<End>>::match(tmp)) {
 		puts("match");
 	} else {
 		puts("not match");
