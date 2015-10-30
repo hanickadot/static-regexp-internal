@@ -1,0 +1,21 @@
+excludeFiles   = "*.{o,oo,d}"
+excludeDirectories = "{build,tmp}"
+fontSize       = 15
+tabSize        = 2
+softTabs       = false
+wrapColumn     = "Use Window Frame"
+softWrap       = true
+showInvisibles = true
+windowTitle = '${TM_FILEPATH:?${TM_FILEPATH/${CWD}.//}:$TM_DISPLAYNAME}$windowTitleProject$windowTitleSCM'
+
+[ *.{c,cpp,h,hpp} ]
+tabSize = 3
+
+
+# special per-filetype rules can be specified like so:
+[ *.{txt,md,mdown,markdown} ]
+spellChecking  = true
+tabSize        = 4
+
+
+
