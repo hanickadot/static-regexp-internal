@@ -453,10 +453,12 @@ protected:
 public:
 	template <typename string_t> bool match(sre::StringRef<string_t> && view) {
 		PositiveClosure closure;
+		inner.resetMemory();
 		return inner(std::forward<sre::StringRef<string_t>>(view), closure);
 	}
 	template <typename string_t> bool match(sre::StringRef<string_t> & view) {
 		PositiveClosure closure;
+		inner.resetMemory();
 		return inner(std::forward<sre::StringRef<string_t>>(view), closure);
 	}
 	template <typename string_t> bool match(const string_t && str) {

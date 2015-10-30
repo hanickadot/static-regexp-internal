@@ -9,9 +9,19 @@ bool checkCycleString(const std::string & str) {
 	return RegExp<Begin, Repeat<3,5,Star<Range<'0','9'>>,Range<'a','z'>>, Select<End,Char<'_'>>>{}.match(str);
 }
 
+template <unsigned int id> using ABC = StaticCatch<id,10,Plus<Range<'a','z'>>>;
+template <unsigned int id> using ABCs = Sequence<Plus<Range<'a','z'>>>;
+template <unsigned int id> using ABCx = Plus<Range<'a','z'>>;
+
 bool checkMemory(const std::string & str, unsigned int count) {
-	using Content = StaticCatch<1,10,Plus<Range<'a','z'>,StaticCatch<2,10,Star<Range<'a','z'>>> > >;
+	
+	using Content = Sequence<ABC<1>,ABC<2>>;
+	using ContentX = Sequence<ABCx<1>,ABCx<2>>;
+	
 	RegExp<Begin, Plus< Content ,Char<'.'>>, End> re;
+	RegExp<Begin, Plus< ContentX ,Char<'.'>>, End> rex;
+	
+	assert(rex.match(str) == re.match(str));
 	
 	if (re.match(str)) {
 		std::cout << "Input: '"<<str<<"'\n";
