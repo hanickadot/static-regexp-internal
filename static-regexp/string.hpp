@@ -14,6 +14,9 @@ public:
 	StringView(const StringView & orig, size_t move): ref{orig.ref}, current{orig.current+move} { }
 	StringView(StringView && orig): ref{orig.ref}, current{orig.current} { }
 	~StringView() = default;
+	size_t getPosition() const {
+		return current - ref.cbegin();
+	}
 	bool isBegin() const {
 		return current == ref.cbegin();
 	}
@@ -31,6 +34,14 @@ public:
 	}
 	const value_type & operator*() const {
 		return *current;
+	}
+	StringView & operator=(StringView && right) {
+		current = right.current;
+		return *this;
+	}
+	StringView & operator=(const StringView & right) {
+		current = right.current;
+		return *this;
 	}
 	const_iterator begin() const {
 		return current;
