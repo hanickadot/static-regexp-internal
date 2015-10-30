@@ -2,18 +2,36 @@
 #define STATIC_REGEXP__STRING_HPP
 
 namespace sre {
-template <typename T> class StringView {
+	
+template <typename T> class StringRange {
+public:
+	using const_iterator = typename T::const_iterator;
 protected:
-	const T & ref;
-	typename T::const_iterator current;
+	const_iterator beginValue;
+	const_iterator endValue;
+public:
+	StringRange(const_iterator begin, const_iterator end): beginValue{begin}, endValue{end} { }
+	const_iterator begin() const {
+		return beginValue;
+	}
+	const_iterator end() const {
+		return endValue;
+	}
+};
+
+template <typename T> class StringRef {
 public:
 	using const_iterator = typename T::const_iterator;
 	using value_type = typename T::value_type;
-	StringView(const T & source): ref{source}, current{ref.cbegin()} { }
-	StringView(const StringView & orig): ref{orig.ref}, current{orig.current} { }
-	StringView(const StringView & orig, size_t move): ref{orig.ref}, current{orig.current+move} { }
-	StringView(StringView && orig): ref{orig.ref}, current{orig.current} { }
-	~StringView() = default;
+protected:
+	const T & ref;
+	const_iterator current;
+public:
+	StringRef(const T & source): ref{source}, current{ref.cbegin()} { }
+	StringRef(const StringRef & orig): ref{orig.ref}, current{orig.current} { }
+	StringRef(const StringRef & orig, size_t move): ref{orig.ref}, current{orig.current+move} { }
+	StringRef(StringRef && orig): ref{orig.ref}, current{orig.current} { }
+	~StringRef() = default;
 	size_t getPosition() const {
 		return current - ref.cbegin();
 	}
@@ -26,20 +44,23 @@ public:
 	value_type get() const {
 		return *current;
 	}
-	StringView copy() const {
-		return StringView(*this);
+	StringRef copy() const {
+		return StringRef(*this);
 	}
-	StringView next() const {
-		return StringView(*this,1);
+	StringRef next() const {
+		return StringRef(*this,1);
+	}
+	const T & getRef() const {
+		return ref;
 	}
 	const value_type & operator*() const {
 		return *current;
 	}
-	StringView & operator=(StringView && right) {
+	StringRef & operator=(StringRef && right) {
 		current = right.current;
 		return *this;
 	}
-	StringView & operator=(const StringView & right) {
+	StringRef & operator=(const StringRef & right) {
 		current = right.current;
 		return *this;
 	}
@@ -51,14 +72,21 @@ public:
 	}
 };
 
-template <typename T> StringView<T> make_view(T & ref) {
-	return StringView<T>{ref};
+template <typename T> StringRef<T> make_sref(T & ref) {
+	return StringRef<T>{ref};
 }
 
-template <typename T> StringView<T> make_view(T && ref) {
-	return StringView<T>{ref};
+template <typename T> StringRef<T> make_sref(T && ref) {
+	return StringRef<T>{ref};
 }
 
+}
+
+template <typename T> std::ostream & operator<<(std::ostream & stream, const sre::StringRange<T> & range) {
+	for (auto & c: range) {
+		stream << c;
+	}
+	return stream;
 }
 
 #endif
