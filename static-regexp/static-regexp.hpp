@@ -87,6 +87,35 @@ public:
 	}
 };
 
+template <typename... Options> class Select;
+
+template <> class Select<> {
+public:
+	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringView<string_t> &&, Right &, FarRight & ...) const {
+		return false;
+	}
+};
+
+template <typename First> class Select<First> {
+protected:
+	First first;
+public:
+	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringView<string_t> && view, Right & right, FarRight & ... fright) const {
+		return first(std::forward<sre::StringView<string_t>>(view), right, fright...);
+	}
+};
+
+template <typename First, typename... Rest> class Select<First, Rest...> {
+protected:
+	First first;
+	Select<Rest...> rest;
+public:
+	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringView<string_t> && view, Right & right, FarRight & ... fright) const {
+		return first(std::forward<sre::StringView<string_t>>(view), right, fright...) || rest(std::forward<sre::StringView<string_t>>(view), right, fright...);
+	}
+};
+
+
 template <typename... Inner> class RegExp {
 public:
 	template <typename string_t> static bool match(sre::StringView<string_t> && view) {

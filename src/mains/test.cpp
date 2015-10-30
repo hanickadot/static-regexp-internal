@@ -5,11 +5,11 @@
 
 using namespace sre;
 
-int main() {
+int main(int argc, char ** argv) {
 	
-	std::string tmp{"ab"};
+	std::string tmp{argv[1]};
 	
-	if (RegExp<Begin, Range<'a','z'>, Range<'a','z'>, End>::match(tmp)) {
+	if (RegExp<Begin, Select<Sequence<Range<'a','z'>, Range<'0','9'>>, Range<'a','z'>>, End>::match(tmp)) {
 		puts("match");
 	} else {
 		puts("not match");
