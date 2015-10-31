@@ -82,6 +82,9 @@ public:
 	size_t size() const {
 		return ptrEnd - ptrBegin;
 	}
+	operator bool() const {
+		return ptrEnd != ptrBegin;
+	}
 };
 
 template <size_t maxCount> class StaticMemory {
@@ -152,10 +155,32 @@ public:
 	void resetMemory() { }
 };
 
+template <unsigned int... c> struct CharHelper;
+
+template <> struct CharHelper<> {
+	template <typename char_t> static bool anyEqual(char_t) {
+		return false;
+	}
+	template <typename char_t> static bool noEqual(char_t) {
+		return true;
+	}
+};
+
+template <unsigned int c, unsigned int... rest> struct CharHelper<c,rest...> {
+	template <typename char_t> static bool anyEqual(char_t value) {
+		return value == c || CharHelper<rest...>::anyEqual(value);
+	}
+	template <typename char_t> static bool noEqual(char_t value) {
+		return value != c && CharHelper<rest...>::noEqual(value);
+	}
+};
+
 template <unsigned int... c> class Char {
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		return !view.isEnd() && ((*view == c) || ...) && right(std::forward<sre::StringRef<string_t>>(view).next(), fright...);
+		// i can use folded expression in c++17
+		// ((*view == c) || ...) 
+		return !view.isEnd() && CharHelper<c...>::anyEqual(*view) && right(std::forward<sre::StringRef<string_t>>(view).next(), fright...);
 	}
 	template <unsigned int> size_t get(CatchRange &) const {
 		return 0;
@@ -168,7 +193,9 @@ using White = Char<'\n','\r','\t',' '>;
 template <unsigned int... c> class NegChar {
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		return !view.isEnd() && ((*view != c) && ...) && right(std::forward<sre::StringRef<string_t>>(view).next(), fright...);
+		// i can use folded expression in c++17
+		// ((*view != c) && ...)
+		return !view.isEnd() && CharHelper<c...>::noEqual(*view) && right(std::forward<sre::StringRef<string_t>>(view).next(), fright...);
 	}
 	template <unsigned int> size_t get(CatchRange &) const {
 		return false;
@@ -494,8 +521,13 @@ public:
 	template <typename string_t> bool match(const string_t & str) {
 		return match(sre::make_sref(str));
 	}
-	template <unsigned int reqid> size_t get(CatchRange & cr) const {
+	template <unsigned int reqid> size_t getRef(CatchRange & cr) const {
 		return inner.template get<reqid>(cr);
+	}
+	template <unsigned int reqid> CatchRange get() const {
+		CatchRange cr;
+		inner.template get<reqid>(cr);
+		return cr;
 	}
 };
 
