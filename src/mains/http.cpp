@@ -10,18 +10,25 @@ int main(int argc, const char ** argv) {
 	using Domain = Sequence<Alpha,Star<AlphaNumeric>>;
 	using Domains = OneCatch<1,Sequence<Domain,Star<Char<'.'>,Domain>>>;
 	
-	RegExp<Begin,Alpha,Star<AlphaNumeric>,String<':','/','/'>,Domains,End> http;
+	RegExp<Begin,Plus<AlphaNumeric>,String<':','/','/'>,Domains,Char<'/'>> http;
 	
 	if (http.match(argv[1])) {
-		CatchRange cr;
-		if (http.get<1>(cr)) {
+		CatchRange cr{http.get<1>()};
+		if (cr) {
 			printf("match: '%.*s'\n",cr[0].len(),argv[1]+cr[0].begin);
 		} else {
-			printf("match: (no-catch)\n");
+			puts("match");
 		}
 		
+		//CatchRange cr;
+		//if (http.get<1>(cr)) {
+		//	printf("match: '%.*s'\n",cr[0].len(),argv[1]+cr[0].begin);
+		//} else {
+		//	printf("match: (no-catch)\n");
+		//}
+		
 	} else {
-		puts("not match");
+		puts("no");
 	}
 	
 	return 0;

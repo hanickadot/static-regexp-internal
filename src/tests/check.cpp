@@ -18,10 +18,6 @@ bool checkEquivalency(const std::string & str) {
 	RegExp<Begin, Sequence<ABCs<1>,ABCs<1>>, End> re2;
 	RegExp<Begin, Sequence<ABCx<1>,ABCx<1>>, End> re3;
 	
-	//std::cout << "re1: " << (re1.match(str)?"yes":"no") << "\n";
-	//std::cout << "re2: " << (re2.match(str)?"yes":"no") << "\n";
-	//std::cout << "re3: " << (re3.match(str)?"yes":"no") << "\n";
-	//
 	assert(re1.match(str) == re2.match(str));
 	assert(re2.match(str) == re3.match(str));
 	assert(re1.match(str) == re3.match(str));
@@ -32,9 +28,9 @@ bool checkUnique(const std::string & str, const std::string & left, const std::s
 	RegExp<Begin, ABC<1>,ABC<2>, End> re;
 	if (re.match(str)) {
 		CatchRange cr;
-		assert(re.get<1>(cr) == 1);
+		assert(re.getRef<1>(cr) == 1);
 		for (auto & pair: cr) { assert(pair(str).toString() == left); }
-		assert(re.get<2>(cr) == 1);
+		assert(re.getRef<2>(cr) == 1);
 		for (auto & pair: cr) { assert(pair(str).toString() == right); }
 		return true;
 	}
@@ -55,13 +51,13 @@ bool checkMemory(const std::string & str, unsigned int count, std::initializer_l
 	
 	if (re.match(str)) {
 		CatchRange cr;
-		assert(re.get<1>(cr) == left.size());
+		assert(re.getRef<1>(cr) == left.size());
 		auto a = left.begin();
 		for (auto & pair: cr) {
 			//std::cout << "'"<<pair(str).toString()<<"' vs '" << *a << "'\n";
 			assert(pair(str).toString() == *a++);
 		}
-		assert(re.get<2>(cr) == right.size());
+		assert(re.getRef<2>(cr) == right.size());
 		auto b = right.begin();
 		for (auto & pair: cr) {
 			//std::cout << "'"<<pair(str).toString()<<"' vs '" << *b << "'\n";
