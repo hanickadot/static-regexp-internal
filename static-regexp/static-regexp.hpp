@@ -137,6 +137,9 @@ public:
 		return 0;
 	}
 	void resetMemory() { }
+	template <unsigned int> unsigned int getId() const {
+		return 0;
+	}
 };
 
 class End {
@@ -148,7 +151,33 @@ public:
 		return 0;
 	}
 	void resetMemory() { }
+	template <unsigned int> unsigned int getId() const {
+		return 0;
+	}
 };
+
+template <unsigned int key, unsigned int value> class Identifier {
+protected:
+	bool matched{false};
+public:
+	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
+		if (right(std::forward<sre::StringRef<string_t>>(view), fright...)) {
+			matched = true;
+			return true;
+		}
+		return false;
+	}
+	template <unsigned int> size_t get(CatchRange &) const {
+		return 0;
+	}
+	void resetMemory() { matched = false; }
+	template <unsigned int reqkey> unsigned int getId() const {
+		if (key == reqkey && matched) return value;
+		else return 0;
+	}
+};
+
+template <unsigned int key, unsigned int value> using Id = Identifier<key,value>;
 
 template <unsigned int... c> struct CharHelper;
 
@@ -181,6 +210,9 @@ public:
 		return 0;
 	}
 	void resetMemory() { }
+	template <unsigned int> unsigned int getId() const {
+		return 0;
+	}
 };
 
 using White = Char<'\n','\r','\t',' '>;
@@ -196,6 +228,9 @@ public:
 		return false;
 	}
 	void resetMemory() { }
+	template <unsigned int> unsigned int getId() const {
+		return 0;
+	}
 };
 
 template <unsigned int...> struct RangeDefinition;
@@ -221,6 +256,9 @@ public:
 		return 0;
 	}
 	void resetMemory() { }
+	template <unsigned int> unsigned int getId() const {
+		return 0;
+	}
 };
 
 using Number = Range<'0','9'>;
@@ -239,6 +277,9 @@ public:
 		return 0;
 	}
 	void resetMemory() { }
+	template <unsigned int> unsigned int getId() const {
+		return 0;
+	}
 };
 
 template <typename First> class Sequence<First>: public First {
@@ -251,6 +292,9 @@ public:
 	}
 	void resetMemory() {
 		First::resetMemory();
+	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return First::template getId<reqkey>();
 	}
 };
 
@@ -272,6 +316,9 @@ public:
 		First::resetMemory();
 		rest.resetMemory();
 	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return First::template getId<reqkey>() || rest.template getId<reqkey>();
+	}
 };
 
 template <unsigned int... c> using String = Sequence<Char<c>...>;
@@ -287,6 +334,9 @@ public:
 		return false;
 	}
 	void resetMemory() { }
+	template <unsigned int> unsigned int getId() const {
+		return 0;
+	}
 };
 
 template <typename First> class Select<First>: public First {
@@ -299,6 +349,9 @@ public:
 	}
 	void resetMemory() {
 		First::resetMemory();
+	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return First::template getId<reqkey>();
 	}
 };
 
@@ -326,6 +379,9 @@ public:
 		First::resetMemory();
 		rest.resetMemory();
 	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return First::template getId<reqkey>() || rest.template getId<reqkey>();
+	}
 };
 
 template <typename... Inner> class Optional: Sequence<Inner...> {
@@ -344,6 +400,9 @@ public:
 	}
 	void resetMemory() {
 		Sequence<Inner...>::resetMemory();
+	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return Sequence<Inner...>::template getId<reqkey>();
 	}
 };
 
@@ -370,6 +429,9 @@ public:
 	void resetMemory() {
 		Sequence<Inner...>::resetMemory();
 	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return Sequence<Inner...>::template getId<reqkey>();
+	}
 };
 
 template <typename... Inner> class ExactRepeat<0,Inner...> {
@@ -381,6 +443,9 @@ public:
 		return 0;
 	}
 	void resetMemory() { }
+	template <unsigned int> unsigned int getId() const {
+		return 0;
+	}
 };
 
 
@@ -432,6 +497,9 @@ public:
 	void resetMemory() {
 		Sequence<Inner...>::resetMemory();
 	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return Sequence<Inner...>::template getId<reqkey>();
+	}
 };
 
 //template <unsigned int count, typename... Inner> class Repeat<count,count,Inner...>: public ExactRepeat<count,Inner...> { };
@@ -470,6 +538,9 @@ public:
 		helper.storage.reset();
 		Sequence<Inner...>::resetMemory();
 	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return Sequence<Inner...>::template getId<reqkey>();
+	}
 };
 
 template <unsigned int id, typename... Inner> using OneCatch = Catch<id, OneMemory, Inner...>;
@@ -497,6 +568,9 @@ public:
 	}
 	void resetMemory() {
 		Sequence<Inner...>::resetMemory();
+	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return Sequence<Inner...>::template getId<reqkey>();
 	}
 };
 
@@ -526,6 +600,9 @@ public:
 		Sequence<Inner...>::template get<reqid>(cr);
 		return cr;
 	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return Sequence<Inner...>::template getId<reqkey>();
+	}
 };
 
 template <typename... Inner> class FloatingRegExp: public Floating<Inner...> {
@@ -553,6 +630,9 @@ public:
 		CatchRange cr;
 		Floating<Inner...>::template get<reqid>(cr);
 		return cr;
+	}
+	template <unsigned int reqkey> unsigned int getId() const {
+		return Sequence<Inner...>::template getId<reqkey>();
 	}
 };
 
