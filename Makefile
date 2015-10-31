@@ -14,7 +14,7 @@ SOURCE_FILES := $(shell find . -name *.cpp | cut -c 3-)
 IGNORE := 
 INCLUDE_HEADS := -I.
 #LIBS += 
-
+override CXXFLAGS += -fno-stack-protector
 include mk/compile.mk
 
 #$(patsubst %,$(OUT_FOLDER)/%,$(CMP_SOURCE_FILES_APPLICATIONS))

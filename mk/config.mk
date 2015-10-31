@@ -18,7 +18,7 @@ LDOPTIMIZE :=
 
 override UNAME_SYSTEM := $(shell uname)
 
-# detekce FreeBSD
+# detection FreeBSD
 ifeq ($(UNAME_SYSTEM),FreeBSD)
  CXX := clang 
  CC := clang
@@ -27,13 +27,13 @@ ifeq ($(UNAME_SYSTEM),FreeBSD)
  override LDFLAGS := -lpthread -lc++
 endif
 
-# detekce OSX
+# detection OSX
 ifeq ($(UNAME_SYSTEM),Darwin)
  override SYSTEM := darwin
  override BUILD := DARWIN
 endif
 
-# detekce Linuxu
+# detection Linuxu
 ifeq ($(UNAME_SYSTEM),Linux)
  override SYSTEM := linux
  override BUILD := LINUX
@@ -47,14 +47,14 @@ override CXX_TYPE := unknown
 override CXX_VERSION := $(shell $(CXX) -v 2>&1 | grep " version " )
 override EMCC_VERSION := $(shell $(CXX) -v 2>&1 | grep emcc )
 
-# detekce gcc-clang (na osx)
+# detection gcc-clang (on osx)
 ifneq (,$(findstring Apple LLVM,$(CXX_VERSION)))
  override CXX_TYPE_CLANG := clang
  override CXX_TYPE := clang
  override CXX_VERSION := ""
 endif
 
-# detekce clangu
+# detection clang
 ifneq (,$(findstring clang,$(CXX_VERSION)))
  override CXX_TYPE_CLANG := clang
  override CXX_TYPE := clang
@@ -62,7 +62,7 @@ ifneq (,$(findstring clang,$(CXX_VERSION)))
  override CXX_CLANG_MINOR := $(shell $(CXX) -v 2>&1 | grep " version " | cut -d' ' -f3  | cut -d'.' -f2)
 endif
 
-# detekce gcc
+# detection gcc
 ifneq (,$(findstring gcc,$(CXX_VERSION)))
  override CXX_TYPE_GCC := gcc
  override CXX_TYPE := gcc
@@ -119,25 +119,17 @@ else ifeq ($(SYSTEM), darwin)
 endif
 
 ifeq ($(CXX_TYPE), gcc)
-ifneq ($(IGNORE_OLD_GCC), yes)
- $(error GCC is broken, don't use it!)
-endif
-ifeq ($(MINGW_GCC), yes)
  override DEPFLAGS += -std=c++11
  override CXXFLAGS += -std=c++11
-else
- override DEPFLAGS += -std=c++11
- override CXXFLAGS += -std=c++11 -fPIC
- override LDFLAGS += -ldl -lpthread 
-endif
+ override LDFLAGS += -lc++
 endif
 
 ifeq ($(CXX_TYPE), clang)
  override CFLAGS += -fPIC -std=gnu99
  override DEPCFLAGS += -std=gnu99
- override CXXFLAGS +=  -fPIC -std=c++1z -stdlib=libc++
- override MMFLAGS +=  -fPIC -std=c++1z -stdlib=libc++
- override DEPFLAGS += -std=c++1z -stdlib=libc++ 
+ override CXXFLAGS +=  -fPIC -std=c++11 -stdlib=libc++
+ override MMFLAGS +=  -fPIC -std=c++11 -stdlib=libc++
+ override DEPFLAGS += -std=c++11 -stdlib=libc++ 
  ifeq ($(SYSTEM), linux)
   override OPTIMIZE := $(MAXOPTIMIZE) $(FLTO)
   override LDOPTIMIZE := $(MAXOPTIMIZE) $(FLTO)
