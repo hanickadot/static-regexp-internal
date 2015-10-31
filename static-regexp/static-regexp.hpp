@@ -28,17 +28,12 @@ template <typename First, typename... Rest> struct StateHelper<First, Rest...> {
 };
 
 template <typename... T> struct State {
-	const char * name{nullptr};
 	StateHelper<T...> helper;
-	State(const char * lname, T & ... rest): name{lname}, helper{rest...} {
-		
-	}
+	State(T & ... rest): helper{rest...} { }
 	void save(const T & ... rest) {
-		//printf("%p, %s: saving... (%zu) (%zu bytes)\n",this,name,sizeof...(T),sizeof(*this));
 		helper.save(rest...);
 	}
 	void load(T & ... rest) const {
-		//printf("%p, %s: loading... (%zu) (%zu bytes)\n",this,name,sizeof...(T),sizeof(*this));
 		helper.load(rest...);
 	}
 };
@@ -246,38 +241,35 @@ public:
 	void resetMemory() { }
 };
 
-template <typename First> class Sequence<First> {
-protected:
-	First first;
+template <typename First> class Sequence<First>: public First {
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		return first(std::forward<sre::StringRef<string_t>>(view), right, fright...);
+		return First::operator()(std::forward<sre::StringRef<string_t>>(view), right, fright...);
 	}
 	template <unsigned int reqid> size_t get(CatchRange & cr) const {
-		return first.template get<reqid>(cr);
+		return First::template get<reqid>(cr);
 	}
 	void resetMemory() {
-		first.resetMemory();
+		First::resetMemory();
 	}
 };
 
-template <typename First, typename... Rest> class Sequence<First, Rest...> {
+template <typename First, typename... Rest> class Sequence<First, Rest...>: public First {
 protected:
-	First first;
 	Sequence<Rest...> rest;
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		return first(std::forward<sre::StringRef<string_t>>(view), rest, right, fright...);
+		return First::operator()(std::forward<sre::StringRef<string_t>>(view), rest, right, fright...);
 	}
 	template <unsigned int reqid> size_t get(CatchRange & cr) const {
-		if (size_t sz = first.template get<reqid>(cr)) {
+		if (size_t sz = First::template get<reqid>(cr)) {
 			return sz;
 		} else {
 			return rest.template get<reqid>(cr);
 		}
 	}
 	void resetMemory() {
-		first.resetMemory();
+		First::resetMemory();
 		rest.resetMemory();
 	}
 };
@@ -297,29 +289,26 @@ public:
 	void resetMemory() { }
 };
 
-template <typename First> class Select<First> {
-protected:
-	First first;
+template <typename First> class Select<First>: public First {
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		return first(std::forward<sre::StringRef<string_t>>(view), right, fright...);
+		return First::operator()(std::forward<sre::StringRef<string_t>>(view), right, fright...);
 	}
 	template <unsigned int reqid> size_t get(CatchRange & cr) const {
-		return first.template get<reqid>(cr);
+		return First::template get<reqid>(cr);
 	}
 	void resetMemory() {
-		first.resetMemory();
+		First::resetMemory();
 	}
 };
 
-template <typename First, typename... Rest> class Select<First, Rest...> {
+template <typename First, typename... Rest> class Select<First, Rest...>: public First {
 protected:
-	First first;
 	Select<Rest...> rest;
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		State<Right, FarRight...> state{"select",right, fright...};
-		if (first(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
+		State<Right, FarRight...> state{right, fright...};
+		if (First::operator()(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
 			return true;
 		} else {
 			state.load(right, fright...);
@@ -327,25 +316,23 @@ public:
 		}
 	}
 	template <unsigned int reqid> size_t get(CatchRange & cr) const {
-		if (size_t sz = first.template get<reqid>(cr)) {
+		if (size_t sz = First::template get<reqid>(cr)) {
 			return sz;
 		} else {
 			return rest.template get<reqid>(cr);
 		}
 	}
 	void resetMemory() {
-		first.resetMemory();
+		First::resetMemory();
 		rest.resetMemory();
 	}
 };
 
-template <typename... Inner> class Optional {
-protected:
-	Sequence<Inner...> inner;
+template <typename... Inner> class Optional: Sequence<Inner...> {
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		State<Right, FarRight...> state{"optional",right, fright...};
-		if (inner(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
+		State<Right, FarRight...> state{right, fright...};
+		if (Sequence<Inner...>::operator()(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
 			return true;
 		} else {
 			state.load(right, fright...);
@@ -353,16 +340,15 @@ public:
 		}
 	}
 	template <unsigned int reqid> size_t get(CatchRange & cr) const {
-		return inner.template get<reqid>(cr);
+		return Sequence<Inner...>::template get<reqid>(cr);
 	}
 	void resetMemory() {
-		inner.resetMemory();
+		Sequence<Inner...>::resetMemory();
 	}
 };
 
-template <unsigned int count, typename... Inner> class ExactRepeat {
+template <unsigned int count, typename... Inner> class ExactRepeat: public Sequence<Inner...> {
 protected:
-	Sequence<Inner...> inner;
 	template <typename string_t> struct Helper {
 		mutable sre::StringRef<string_t> storedView;
 		bool operator()(sre::StringRef<string_t> && view) const {
@@ -374,15 +360,15 @@ public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
 		Helper<string_t> helper{std::forward<sre::StringRef<string_t>>(view)};
 		for (unsigned int i{0}; i != count; ++i) {
-			if (!inner(std::move(helper.storedView), helper)) return false;
+			if (!Sequence<Inner...>::operator()(std::move(helper.storedView), helper)) return false;
 		}
 		return right(std::move(helper.storedView), fright...);
 	}
 	template <unsigned int reqid> size_t get(CatchRange & cr) const {
-		return inner.template get<reqid>(cr);
+		return Sequence<Inner...>::template get<reqid>(cr);
 	}
 	void resetMemory() {
-		inner.resetMemory();
+		Sequence<Inner...>::resetMemory();
 	}
 };
 
@@ -398,9 +384,8 @@ public:
 };
 
 
-template <unsigned int min, unsigned int max, typename... Inner> class Repeat {
+template <unsigned int min, unsigned int max, typename... Inner> class Repeat: public Sequence<Inner...> {
 protected:
-	Sequence<Inner...> inner;
 	template <typename string_t> struct Helper {
 		mutable sre::StringRef<string_t> storedView;
 		bool operator()(sre::StringRef<string_t> && view) const {
@@ -417,48 +402,48 @@ public:
 		bool havePositive{false};
 	
 		//printf("cycle: %p (helper = %p)\n",this,&helper);
-		State<decltype(inner), Right, FarRight...> success{"success",inner, right, fright...};
+		State<decltype(*this), Right, FarRight...> success{*this, right, fright...};
 		for (unsigned int i{0};; ++i) {
 			
 			if (max && max < i) break;
 			else if (!min || (min && min <= i)) {
-				State<decltype(inner), Right, FarRight...> state{"state",inner,right, fright...};
+				State<decltype(*this), Right, FarRight...> state{*this,right, fright...};
 		
 				if (right(helper.storedView.copy(),fright...)) {
 					havePositive = true;
-					success.save(inner, right, fright...);
-					state.load(inner, right, fright...);
+					success.save(*this, right, fright...);
+					state.load(*this, right, fright...);
 				}
 			}
 			
-			if (!inner(helper.storedView.copy(), helper)) {
+			if (!Sequence<Inner...>::operator()(helper.storedView.copy(), helper)) {
 				break;
 			}
 		}
 		if (havePositive) {
-			success.load(inner, right, fright...);
+			success.load(*this, right, fright...);
 			return true;
 		}
 		return false;
 	}
 	template <unsigned int reqid> size_t get(CatchRange & cr) const {
-		return inner.template get<reqid>(cr);
+		return Sequence<Inner...>::template get<reqid>(cr);
 	}
 	void resetMemory() {
-		inner.resetMemory();
+		Sequence<Inner...>::resetMemory();
 	}
 };
+
+//template <unsigned int count, typename... Inner> class Repeat<count,count,Inner...>: public ExactRepeat<count,Inner...> { };
 
 template <typename... Inner> using Plus = Repeat<1,0,Inner...>;
 template <typename... Inner> using Star = Repeat<0,0,Inner...>;
 
-template <unsigned int id, typename Storage, typename... Inner> class Catch {
+template <unsigned int id, typename Storage, typename... Inner> class Catch: public Sequence<Inner...> {
 protected:
-	Sequence<Inner...> inner;
 	struct Helper {
-		unsigned int firstPos;
 		Storage storage;
-		Helper & operator=(const Helper &) = default;// {
+		unsigned int firstPos;
 		template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
 			unsigned int secondPos{view.getPosition()};
 			if (right(std::forward<sre::StringRef<string_t>>(view), fright...)) {
@@ -471,28 +456,19 @@ protected:
 	Helper helper;
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		//printf("%u: get position: %zu: %c\n",id,view.getPosition(),*view);
 		helper.firstPos = view.getPosition();
-		return inner(std::forward<sre::StringRef<string_t>>(view), helper, right, fright...);
-		
-		//return inner(std::forward<sre::StringRef<string_t>>(view), right, fright...);
-		//Helper<string_t> helper{std::forward<sre::StringRef<string_t>>(view)};
-		//if (inner(std::move(helper.storedView), helper)) {
-		//	storage.store({helper.getFirstPosition(), helper.getCurrentPosition()});
-		//	return right(std::move(helper.storedView), fright...);
-		//}
-		//return false;
+		return Sequence<Inner...>::operator()(std::forward<sre::StringRef<string_t>>(view), helper, right, fright...);
 	}
 	template <unsigned int reqid> size_t get(CatchRange & cr) const {
 		if (id == reqid) {
 			return (cr = helper.storage.getRange()).size();
 		} else {
-			return inner.template get<reqid>(cr);
+			return Sequence<Inner...>::template get<reqid>(cr);
 		}
 	}
 	void resetMemory() {
 		helper.storage.reset();
-		inner.resetMemory();
+		Sequence<Inner...>::resetMemory();
 	}
 };
 
@@ -500,16 +476,14 @@ template <unsigned int id, typename... Inner> using OneCatch = Catch<id, OneMemo
 template <unsigned int id, size_t count, typename... Inner> using StaticCatch = Catch<id, StaticMemory<count>, Inner...>;
 //template <typename... Inner> using DynamicCatch = Catch<DynamicMemory, Inner...>;
 
-template <typename... Inner> class Floating {
-protected:
-	Sequence<Inner...> inner;
+template <typename... Inner> class Floating: public Sequence<Inner...> {
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		if (view.isEnd() && inner(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
+		if (view.isEnd() && Sequence<Inner...>::operator()(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
 			return true;
 		} else {
 			while (!view.isEnd()) {
-				if (inner(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
+				if (Sequence<Inner...>::operator()(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
 					return true;
 				} else {
 					view.move();
@@ -519,26 +493,24 @@ public:
 		}
 	}
 	template <unsigned int reqid> size_t get(CatchRange & cr) const {
-		return inner.template get<reqid>(cr);
+		return Sequence<Inner...>::template get<reqid>(cr);
 	}
 	void resetMemory() {
-		inner.resetMemory();
+		Sequence<Inner...>::resetMemory();
 	}
 };
 
-template <typename... Inner> class RegExp {
-protected:
-	Sequence<Inner...> inner;
+template <typename... Inner> class RegExp: public Sequence<Inner...> {
 public:
 	template <typename string_t> bool match(sre::StringRef<string_t> && view) {
 		PositiveClosure closure;
-		inner.resetMemory();
-		return inner(std::forward<sre::StringRef<string_t>>(view), closure);
+		Sequence<Inner...>::resetMemory();
+		return Sequence<Inner...>::operator()(std::forward<sre::StringRef<string_t>>(view), closure);
 	}
 	template <typename string_t> bool match(sre::StringRef<string_t> & view) {
 		PositiveClosure closure;
-		inner.resetMemory();
-		return inner(std::forward<sre::StringRef<string_t>>(view), closure);
+		Sequence<Inner...>::resetMemory();
+		return Sequence<Inner...>::operator()(std::forward<sre::StringRef<string_t>>(view), closure);
 	}
 	template <typename string_t> bool match(const string_t && str) {
 		return match(sre::make_sref(str));
@@ -547,28 +519,26 @@ public:
 		return match(sre::make_sref(str));
 	}
 	template <unsigned int reqid> size_t getRef(CatchRange & cr) const {
-		return inner.template get<reqid>(cr);
+		return Sequence<Inner...>::template get<reqid>(cr);
 	}
 	template <unsigned int reqid> CatchRange get() const {
 		CatchRange cr;
-		inner.template get<reqid>(cr);
+		Sequence<Inner...>::template get<reqid>(cr);
 		return cr;
 	}
 };
 
-template <typename... Inner> class FloatingRegExp {
-protected:
-	Floating<Inner...> inner;
+template <typename... Inner> class FloatingRegExp: public Floating<Inner...> {
 public:
 	template <typename string_t> bool match(sre::StringRef<string_t> && view) {
 		PositiveClosure closure;
-		inner.resetMemory();
-		return inner(std::forward<sre::StringRef<string_t>>(view), closure);
+		Floating<Inner...>::resetMemory();
+		return Floating<Inner...>::operator()(std::forward<sre::StringRef<string_t>>(view), closure);
 	}
 	template <typename string_t> bool match(sre::StringRef<string_t> & view) {
 		PositiveClosure closure;
-		inner.resetMemory();
-		return inner(std::forward<sre::StringRef<string_t>>(view), closure);
+		Floating<Inner...>::resetMemory();
+		return Floating<Inner...>::operator()(std::forward<sre::StringRef<string_t>>(view), closure);
 	}
 	template <typename string_t> bool match(const string_t && str) {
 		return match(sre::make_sref(str));
@@ -577,11 +547,11 @@ public:
 		return match(sre::make_sref(str));
 	}
 	template <unsigned int reqid> size_t getRef(CatchRange & cr) const {
-		return inner.template get<reqid>(cr);
+		return Floating<Inner...>::template get<reqid>(cr);
 	}
 	template <unsigned int reqid> CatchRange get() const {
 		CatchRange cr;
-		inner.template get<reqid>(cr);
+		Floating<Inner...>::template get<reqid>(cr);
 		return cr;
 	}
 };

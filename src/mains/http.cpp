@@ -11,7 +11,6 @@ int main(int argc, const char ** argv) {
 	using Domains = OneCatch<1,Sequence<Domain,Star<Char<'.'>,Domain>>>;
 	
 	RegExp<Begin,Plus<AlphaNumeric>,String<':','/','/'>,Domains,Char<'/'>> http;
-	
 	if (http.match(argv[1])) {
 		CatchRange cr{http.get<1>()};
 		if (cr) {
