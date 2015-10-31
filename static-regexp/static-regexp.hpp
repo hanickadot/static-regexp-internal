@@ -500,10 +500,65 @@ template <unsigned int id, typename... Inner> using OneCatch = Catch<id, OneMemo
 template <unsigned int id, size_t count, typename... Inner> using StaticCatch = Catch<id, StaticMemory<count>, Inner...>;
 //template <typename... Inner> using DynamicCatch = Catch<DynamicMemory, Inner...>;
 
+template <typename... Inner> class Floating {
+protected:
+	Sequence<Inner...> inner;
+public:
+	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
+		if (view.isEnd() && inner(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
+			return true;
+		} else {
+			while (!view.isEnd()) {
+				if (inner(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
+					return true;
+				} else {
+					view.move();
+				}
+			}
+			return false;
+		}
+	}
+	template <unsigned int reqid> size_t get(CatchRange & cr) const {
+		return inner.template get<reqid>(cr);
+	}
+	void resetMemory() {
+		inner.resetMemory();
+	}
+};
 
 template <typename... Inner> class RegExp {
 protected:
 	Sequence<Inner...> inner;
+public:
+	template <typename string_t> bool match(sre::StringRef<string_t> && view) {
+		PositiveClosure closure;
+		inner.resetMemory();
+		return inner(std::forward<sre::StringRef<string_t>>(view), closure);
+	}
+	template <typename string_t> bool match(sre::StringRef<string_t> & view) {
+		PositiveClosure closure;
+		inner.resetMemory();
+		return inner(std::forward<sre::StringRef<string_t>>(view), closure);
+	}
+	template <typename string_t> bool match(const string_t && str) {
+		return match(sre::make_sref(str));
+	}
+	template <typename string_t> bool match(const string_t & str) {
+		return match(sre::make_sref(str));
+	}
+	template <unsigned int reqid> size_t getRef(CatchRange & cr) const {
+		return inner.template get<reqid>(cr);
+	}
+	template <unsigned int reqid> CatchRange get() const {
+		CatchRange cr;
+		inner.template get<reqid>(cr);
+		return cr;
+	}
+};
+
+template <typename... Inner> class FloatingRegExp {
+protected:
+	Floating<Inner...> inner;
 public:
 	template <typename string_t> bool match(sre::StringRef<string_t> && view) {
 		PositiveClosure closure;

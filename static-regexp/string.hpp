@@ -56,6 +56,9 @@ public:
 	StringRef next() const {
 		return StringRef(*this,1);
 	}
+	void move() {
+		current++;
+	}
 	const T & getRef() const {
 		return ref;
 	}
@@ -103,6 +106,9 @@ public:
 	}
 	StringRef next() const {
 		return StringRef(*this,1);
+	}
+	void move() {
+		current++;
 	}
 	const CharT * getRef() const {
 		return ref;
