@@ -17,7 +17,9 @@ INCLUDE_HEADS := -I.
 
 include mk/compile.mk
 
-tests: $(OUT_FOLDER)/src/tests/check.cpp.app
-	@$(OUT_FOLDER)/src/tests/check.cpp.app
+#$(patsubst %,$(OUT_FOLDER)/%,$(CMP_SOURCE_FILES_APPLICATIONS))
+
+tests: $(patsubst %,$(OUT_FOLDER)/%.app,$(wildcard src/tests/*.cpp))
+	@$(patsubst %,%&&,$(wildcard $(OUT_FOLDER)/src/tests/*.cpp.app)) true
 
 all: tests

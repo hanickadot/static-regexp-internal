@@ -92,6 +92,5 @@ int main(int argc, char ** argv) {
 	assert(checkMemory("",0,{},{}) == false);
 	assert(checkUnique("abcdef","abcde","f") == true);
 	
-	
 	return 0;
 }
