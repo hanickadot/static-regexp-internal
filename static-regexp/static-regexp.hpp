@@ -15,6 +15,7 @@ template <> struct StateHelper<> {
 template <typename First, typename... Rest> struct StateHelper<First, Rest...> {
 	First first;
 	StateHelper<Rest...> rest;
+	StateHelper(const First & right, const Rest & ... lrest): first{right}, rest{lrest...} { }
 	void save(const First & right, const Rest & ... lrest) {
 		//printf("  obj: %p\n",&right);
 		first = right;
@@ -27,13 +28,17 @@ template <typename First, typename... Rest> struct StateHelper<First, Rest...> {
 };
 
 template <typename... T> struct State {
+	const char * name{nullptr};
 	StateHelper<T...> helper;
+	State(const char * lname, T & ... rest): name{lname}, helper{rest...} {
+		
+	}
 	void save(const T & ... rest) {
-		//printf("%p: saving... (%zu) (%zu bytes)\n",this,sizeof...(T),sizeof(*this));
+		//printf("%p, %s: saving... (%zu) (%zu bytes)\n",this,name,sizeof...(T),sizeof(*this));
 		helper.save(rest...);
 	}
 	void load(T & ... rest) const {
-		//printf("%p: loading... (%zu) (%zu bytes)\n",this,sizeof...(T),sizeof(*this));
+		//printf("%p, %s: loading... (%zu) (%zu bytes)\n",this,name,sizeof...(T),sizeof(*this));
 		helper.load(rest...);
 	}
 };
@@ -71,6 +76,9 @@ public:
 	const PositionPair * end() const {
 		return ptrEnd;
 	}
+	const PositionPair & operator[](size_t id) const {
+		return *(ptrBegin+id);
+	}
 	size_t size() const {
 		return ptrEnd - ptrBegin;
 	}
@@ -97,6 +105,14 @@ public:
 	}
 	void reset() {
 		count = 0;
+	}
+	StaticMemory & operator=(const StaticMemory & right) {
+		count = right.count;
+		//printf("moving with memory: %p\n",this);
+		for (unsigned int i{0}; i != maxCount; ++i) {
+			list[i] = right.list[i];
+		}
+		return *this;
 	}
 };	
 
@@ -147,6 +163,8 @@ public:
 	void resetMemory() { }
 };
 
+using White = Char<'\n','\r','\t',' '>;
+
 template <unsigned int... c> class NegChar {
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
@@ -182,6 +200,11 @@ public:
 	}
 	void resetMemory() { }
 };
+
+using Number = Range<'0','9'>;
+using Alpha = Range<'a','z','A','Z'>;
+using AlphaNumeric = Range<'a','z','A','Z','0','9'>;
+
 
 template <typename... Parts> class Sequence;
 
@@ -232,6 +255,8 @@ public:
 	}
 };
 
+template <unsigned int... c> using String = Sequence<Char<c>...>;
+
 template <typename... Options> class Select;
 
 template <> class Select<> {
@@ -266,7 +291,7 @@ protected:
 	Select<Rest...> rest;
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		State<Right, FarRight...> state{right, fright...};
+		State<Right, FarRight...> state{"select",right, fright...};
 		if (first(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
 			return true;
 		} else {
@@ -292,7 +317,7 @@ protected:
 	Sequence<Inner...> inner;
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		State<Right, FarRight...> state{right, fright...};
+		State<Right, FarRight...> state{"optional",right, fright...};
 		if (inner(std::forward<sre::StringRef<string_t>>(view), right, fright...)) {
 			return true;
 		} else {
@@ -365,24 +390,26 @@ public:
 		bool havePositive{false};
 	
 		//printf("cycle: %p (helper = %p)\n",this,&helper);
-		State<Right, FarRight...> state{right, fright...};
+		State<decltype(inner), Right, FarRight...> success{"success",inner, right, fright...};
 		for (unsigned int i{0};; ++i) {
 			
 			if (max && max < i) break;
 			else if (!min || (min && min <= i)) {
-				state.save(right, fright...);
-				
-				
+				State<decltype(inner), Right, FarRight...> state{"state",inner,right, fright...};
+		
 				if (right(helper.storedView.copy(),fright...)) {
 					havePositive = true;
-					state.load(right, fright...);
+					success.save(inner, right, fright...);
+					state.load(inner, right, fright...);
 				}
 			}
 			
-			if (!inner(std::move(helper.storedView), helper)) break;
+			if (!inner(helper.storedView.copy(), helper)) {
+				break;
+			}
 		}
 		if (havePositive) {
-			state.load(right, fright...);
+			success.load(inner, right, fright...);
 			return true;
 		}
 		return false;
@@ -401,43 +428,43 @@ template <typename... Inner> using Star = Repeat<0,0,Inner...>;
 template <unsigned int id, typename Storage, typename... Inner> class Catch {
 protected:
 	Sequence<Inner...> inner;
-	Storage storage;
-	template <typename string_t> struct Helper {
-		mutable sre::StringRef<string_t> storedView;
-		size_t position;
-		Helper(sre::StringRef<string_t> && view): storedView{std::move(view)}, position{storedView.getPosition()} { }
-		bool operator()(sre::StringRef<string_t> && view) const {
-			storedView = std::move(view);
-			return true;
+	struct Helper {
+		size_t firstPos;
+		Storage storage;
+		Helper & operator=(const Helper &) = default;// {
+		template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
+			size_t secondPos{view.getPosition()};
+			if (right(std::forward<sre::StringRef<string_t>>(view), fright...)) {
+				storage.store({firstPos,secondPos});
+				return true;
+			}
+			else return false;
 		};
-		size_t getFirstPosition() const {
-			return position;
-		}
-		size_t getCurrentPosition() const {
-			return storedView.getPosition();
-		}
-		void operator=(const Helper &) const {
-			// this is here to avoid copying
-		}
 	};
+	Helper helper;
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-		Helper<string_t> helper{std::forward<sre::StringRef<string_t>>(view)};
-		if (inner(std::move(helper.storedView), helper)) {
-			storage.store({helper.getFirstPosition(), helper.getCurrentPosition()});
-			return right(std::move(helper.storedView), fright...);
-		}
-		return false;
+		//printf("%u: get position: %zu: %c\n",id,view.getPosition(),*view);
+		helper.firstPos = view.getPosition();
+		return inner(std::forward<sre::StringRef<string_t>>(view), helper, right, fright...);
+		
+		//return inner(std::forward<sre::StringRef<string_t>>(view), right, fright...);
+		//Helper<string_t> helper{std::forward<sre::StringRef<string_t>>(view)};
+		//if (inner(std::move(helper.storedView), helper)) {
+		//	storage.store({helper.getFirstPosition(), helper.getCurrentPosition()});
+		//	return right(std::move(helper.storedView), fright...);
+		//}
+		//return false;
 	}
 	template <unsigned int reqid> size_t get(CatchRange & cr) const {
 		if (id == reqid) {
-			return (cr = storage.getRange()).size();
+			return (cr = helper.storage.getRange()).size();
 		} else {
 			return inner.template get<reqid>(cr);
 		}
 	}
 	void resetMemory() {
-		storage.reset();
+		helper.storage.reset();
 		inner.resetMemory();
 	}
 };

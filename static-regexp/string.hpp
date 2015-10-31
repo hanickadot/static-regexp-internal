@@ -17,6 +17,9 @@ public:
 	const_iterator end() const {
 		return endValue;
 	}
+	T toString() const {
+		return T(beginValue,endValue);
+	}
 };
 
 template <typename T> class StringRef {
