@@ -12,10 +12,10 @@ int main(int argc, const char ** argv) {
 	
 	RegExp<Begin,Alpha,Star<AlphaNumeric>,String<':','/','/'>,Domains,End> http;
 	
-	if (http.match(std::string(argv[1]))) {
+	if (http.match(argv[1])) {
 		CatchRange cr;
 		if (http.get<1>(cr)) {
-			printf("match: '%s'\n",NULL);
+			printf("match: '%.*s'\n",cr[0].len(),argv[1]+cr[0].begin);
 		} else {
 			printf("match: (no-catch)\n");
 		}

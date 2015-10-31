@@ -44,9 +44,9 @@ template <typename... T> struct State {
 };
 
 struct PositionPair {
-	mutable size_t begin;
-	mutable size_t end;
-	size_t len() const {
+	mutable unsigned int begin;
+	mutable unsigned int end;
+	unsigned int len() const {
 		return end - begin;
 	}
 	template <typename string_t> StringRange<string_t> operator()(StringRef<string_t> && view) const {
@@ -429,11 +429,11 @@ template <unsigned int id, typename Storage, typename... Inner> class Catch {
 protected:
 	Sequence<Inner...> inner;
 	struct Helper {
-		size_t firstPos;
+		unsigned int firstPos;
 		Storage storage;
 		Helper & operator=(const Helper &) = default;// {
 		template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
-			size_t secondPos{view.getPosition()};
+			unsigned int secondPos{view.getPosition()};
 			if (right(std::forward<sre::StringRef<string_t>>(view), fright...)) {
 				storage.store({firstPos,secondPos});
 				return true;
