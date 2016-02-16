@@ -1,6 +1,8 @@
 #ifndef STATIC_REGEXP__STRING_HPP
 #define STATIC_REGEXP__STRING_HPP
 
+#include <string>
+
 namespace sre {
 	
 template <typename T> class StringRange {

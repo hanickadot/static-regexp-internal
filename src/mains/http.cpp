@@ -12,7 +12,7 @@ int main(int argc, const char ** argv) {
 	
 	RegExp<Begin,Plus<AlphaNumeric>,String<':','/','/'>,Domains,Char<'/'>> http;
 	if (http.match(argv[1])) {
-		CatchRange cr{http.get<1>()};
+		CatchRange cr{http.getCatch<1>()};
 		if (cr) {
 			printf("match: '%.*s'\n",cr[0].len(),argv[1]+cr[0].begin);
 		} else {

@@ -2,6 +2,7 @@
 #define STATIC_REGEXP_HPP
 
 #include <static-regexp/string.hpp>
+#include <vector>
 
 namespace sre {
 
@@ -115,7 +116,25 @@ public:
 };	
 
 class DynamicMemory {
-	
+protected:
+	std::vector<PositionPair> data;
+public:
+	void store(PositionPair && pair) {
+		data.emplace_back(std::forward<PositionPair>(pair));
+	}
+	const PositionPair * begin() const {
+		return &*data.cbegin();
+	}
+	const PositionPair * end() const {
+		return &*data.cend();
+	}
+	CatchRange getRange() const {
+		return {begin(),end()};
+	}
+	void reset() {
+		data = {};
+	}
+	DynamicMemory & operator=(const DynamicMemory & right) = default;
 };
 
 using OneMemory = StaticMemory<1>;
@@ -156,16 +175,29 @@ public:
 	}
 };
 
+class Empty {
+public:
+	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
+		return right(std::forward<sre::StringRef<string_t>>(view), fright...);
+	}
+	template <unsigned int> size_t get(CatchRange &) const {
+		return 0;
+	}
+	void resetMemory() { }
+	template <unsigned int> unsigned int getId() const {
+		return 0;
+	}
+};
+
 template <unsigned int key, unsigned int value> class Identifier {
 protected:
 	bool matched{false};
 public:
 	template <typename Right, typename... FarRight, typename string_t> bool operator()(sre::StringRef<string_t> && view, Right & right, FarRight & ... fright) {
 		if (right(std::forward<sre::StringRef<string_t>>(view), fright...)) {
-			matched = true;
-			return true;
+			return matched = true;
 		}
-		return false;
+		return matched = false;
 	}
 	template <unsigned int> size_t get(CatchRange &) const {
 		return 0;
@@ -317,7 +349,8 @@ public:
 		rest.resetMemory();
 	}
 	template <unsigned int reqkey> unsigned int getId() const {
-		return First::template getId<reqkey>() || rest.template getId<reqkey>();
+		unsigned int tmp{First::template getId<reqkey>()};
+		return tmp ? tmp : rest.template getId<reqkey>();
 	}
 };
 
@@ -380,7 +413,8 @@ public:
 		rest.resetMemory();
 	}
 	template <unsigned int reqkey> unsigned int getId() const {
-		return First::template getId<reqkey>() || rest.template getId<reqkey>();
+		unsigned int tmp{First::template getId<reqkey>()};
+		return tmp ? tmp : rest.template getId<reqkey>();
 	}
 };
 
@@ -449,7 +483,7 @@ public:
 };
 
 
-template <unsigned int min, unsigned int max, typename... Inner> class Repeat: public Sequence<Inner...> {
+template <unsigned int min, unsigned int max, bool gready, typename... Inner> class RepeatHelper: public Sequence<Inner...> {
 protected:
 	template <typename string_t> struct Helper {
 		mutable sre::StringRef<string_t> storedView;
@@ -475,9 +509,14 @@ public:
 				State<decltype(*this), Right, FarRight...> state{*this,right, fright...};
 		
 				if (right(helper.storedView.copy(),fright...)) {
-					havePositive = true;
-					success.save(*this, right, fright...);
-					state.load(*this, right, fright...);
+					if (gready) {
+						havePositive = true;
+						success.save(*this, right, fright...);
+						state.load(*this, right, fright...);
+					} else {
+						// MAYBE this need fix
+						return true;
+					}
 				}
 			}
 			
@@ -504,8 +543,15 @@ public:
 
 //template <unsigned int count, typename... Inner> class Repeat<count,count,Inner...>: public ExactRepeat<count,Inner...> { };
 
-template <typename... Inner> using Plus = Repeat<1,0,Inner...>;
-template <typename... Inner> using Star = Repeat<0,0,Inner...>;
+template <unsigned int min, unsigned int max, typename... Inner> using Repeat = RepeatHelper<min,max,true,Inner...>;
+template <unsigned int min, unsigned int max, typename... Inner> using NGRepeat = RepeatHelper<min,max,false,Inner...>;
+
+template <typename... Inner> using Plus = RepeatHelper<1,0,true,Inner...>;
+template <typename... Inner> using Star = RepeatHelper<0,0,true,Inner...>;
+
+template <typename... Inner> using NGPlus = RepeatHelper<1,0,false,Inner...>;
+template <typename... Inner> using NGStar = RepeatHelper<0,0,false,Inner...>;
+
 
 template <unsigned int id, typename Storage, typename... Inner> class Catch: public Sequence<Inner...> {
 protected:
@@ -545,7 +591,7 @@ public:
 
 template <unsigned int id, typename... Inner> using OneCatch = Catch<id, OneMemory, Inner...>;
 template <unsigned int id, size_t count, typename... Inner> using StaticCatch = Catch<id, StaticMemory<count>, Inner...>;
-//template <typename... Inner> using DynamicCatch = Catch<DynamicMemory, Inner...>;
+template <unsigned int id, typename... Inner> using DynamicCatch = Catch<id, DynamicMemory, Inner...>;
 
 template <typename... Inner> class Floating: public Sequence<Inner...> {
 public:
@@ -592,10 +638,10 @@ public:
 	template <typename string_t> bool match(const string_t & str) {
 		return match(sre::make_sref(str));
 	}
-	template <unsigned int reqid> size_t getRef(CatchRange & cr) const {
+	template <unsigned int reqid> size_t getCatchRef(CatchRange & cr) const {
 		return Sequence<Inner...>::template get<reqid>(cr);
 	}
-	template <unsigned int reqid> CatchRange get() const {
+	template <unsigned int reqid> CatchRange getCatch() const {
 		CatchRange cr;
 		Sequence<Inner...>::template get<reqid>(cr);
 		return cr;
@@ -623,10 +669,10 @@ public:
 	template <typename string_t> bool match(const string_t & str) {
 		return match(sre::make_sref(str));
 	}
-	template <unsigned int reqid> size_t getRef(CatchRange & cr) const {
+	template <unsigned int reqid> size_t getCatchRef(CatchRange & cr) const {
 		return Floating<Inner...>::template get<reqid>(cr);
 	}
-	template <unsigned int reqid> CatchRange get() const {
+	template <unsigned int reqid> CatchRange getCatch() const {
 		CatchRange cr;
 		Floating<Inner...>::template get<reqid>(cr);
 		return cr;

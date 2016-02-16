@@ -28,9 +28,9 @@ bool checkUnique(const std::string & str, const std::string & left, const std::s
 	RegExp<Begin, ABC<1>,ABC<2>, End> re;
 	if (re.match(str)) {
 		CatchRange cr;
-		assert(re.getRef<1>(cr) == 1);
+		assert(re.getCatchRef<1>(cr) == 1);
 		for (auto & pair: cr) { assert(pair(str).toString() == left); }
-		assert(re.getRef<2>(cr) == 1);
+		assert(re.getCatchRef<2>(cr) == 1);
 		for (auto & pair: cr) { assert(pair(str).toString() == right); }
 		return true;
 	}
@@ -51,13 +51,13 @@ bool checkMemory(const std::string & str, unsigned int count, std::initializer_l
 	
 	if (re.match(str)) {
 		CatchRange cr;
-		assert(re.getRef<1>(cr) == left.size());
+		assert(re.getCatchRef<1>(cr) == left.size());
 		auto a = left.begin();
 		for (auto & pair: cr) {
 			//std::cout << "'"<<pair(str).toString()<<"' vs '" << *a << "'\n";
 			assert(pair(str).toString() == *a++);
 		}
-		assert(re.getRef<2>(cr) == right.size());
+		assert(re.getCatchRef<2>(cr) == right.size());
 		auto b = right.begin();
 		for (auto & pair: cr) {
 			//std::cout << "'"<<pair(str).toString()<<"' vs '" << *b << "'\n";
